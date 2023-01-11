@@ -1,0 +1,100 @@
+#include "parse.h"
+
+int my_getline(char **res, FILE *file) {
+  *res = malloc(sizeof(char) * 2);
+  int sz = 2, cnt = 0;
+  char c;
+  int fst = 1;
+  while (1) {
+    c = fgetc(file);
+    if (c == EOF && fst) return -1;
+    fst = 0;
+    if (c == EOF || c == '\n') break;
+    (*res)[cnt++] = c;
+    if (cnt + 1 == sz) {
+      sz *= 2;
+      *res = realloc(*res, sz);
+    }
+  }
+  (*res)[cnt] = '\0';
+  return cnt;
+}
+
+void print_parse_res(cli_options *cli_flags, char ***patterns,
+                     int *patterns_count) {
+  printf(
+      "e: %d\ni: %d\nv: %d\nc: %d\nl: %d\nn: %d\nh: %d\ns: %d\nf: %d\no: "
+      "%d\n\n",
+      cli_flags->e, cli_flags->i, cli_flags->v, cli_flags->c, cli_flags->l,
+      cli_flags->n, cli_flags->h, cli_flags->s, cli_flags->f, cli_flags->o);
+  print_patterns(patterns, patterns_count);
+}
+
+int parse_arguments(int argc, char *argv[], cli_options *cli_flags,
+                    char ***patterns, int *patterns_size, int *patterns_count) {
+  int cnt = 0;
+  int is_error = 0;
+  int ch;
+  FILE *file;
+  while ((ch = getopt(argc, argv, "e:ivclnhsf:o")) != -1) {
+    cnt++;
+    switch (ch) {
+      case 'e':
+        add_pattern(optarg, patterns, patterns_size, patterns_count);
+        cli_flags->e = 1;
+        break;
+      case 'i':
+        cli_flags->i = 1;
+        break;
+      case 'v':
+        cli_flags->v = 1;
+        break;
+      case 'c':
+        cli_flags->c = 1;
+        break;
+      case 'l':
+        cli_flags->l = 1;
+        break;
+      case 'n':
+        cli_flags->n = 1;
+        break;
+      case 'h':
+        cli_flags->h = 1;
+        break;
+      case 's':
+        opterr = 0;
+        cli_flags->s = 1;
+        break;
+      case 'f':
+        file = fopen(optarg, "r");
+        if (!file) {
+          return -1;
+        }
+        while (1) {
+          char *buff;
+          int len = my_getline(&buff, file);
+          if (len > 0) {
+            add_pattern(buff, patterns, patterns_size, patterns_count);
+          }
+          free(buff);
+          if (len == 0) break;
+        }
+        cli_flags->f = 1;
+        fclose(file);
+        break;
+      case 'o':
+        cli_flags->o = 1;
+        break;
+      case '?':
+        is_error = 1;
+    }
+  }
+
+  if (!cli_flags->e && !cli_flags->f && optind < argc) {
+    add_pattern(argv[optind], patterns, patterns_size, patterns_count);
+    optind++;
+  }
+
+  if (is_error) cnt = -1;
+  return cnt;
+}
